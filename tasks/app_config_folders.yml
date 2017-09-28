@@ -1,0 +1,23 @@
+#
+# Django deployment folder structure
+#
+
+- block:
+  - name: create project folders
+    file: path={{ item }} state=directory owner=root
+    with_items:
+      - "{{ django_deployment_root_folder }}/{{ url }}"
+      - "{{ django_deployment_root_folder }}/{{ url }}/versions"
+      - "{{ django_deployment_root_folder }}/{{ url }}/project"
+
+  - name: sets folder permissions
+    acl: name={{ item }} entity={{ django_deployment_user }} etype=user permissions="rwx" state=present
+    with_items:
+      - "{{ django_deployment_root_folder }}/{{ url }}"
+      - "{{ django_deployment_root_folder }}/{{ url }}/versions"
+      - "{{ django_deployment_root_folder }}/{{ url }}/project"
+
+  rescue:
+    - debug: msg='Error caught'
+    - file: path="{{ django_deployment_root_folder }}/{{ url }}" state=absent
+    - command: /bin/false

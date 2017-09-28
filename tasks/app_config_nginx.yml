@@ -1,0 +1,43 @@
+#
+# NGINX configuration
+#
+
+- block:
+  - name: NGINX checking the configuration prior to the installation
+    shell: "{{ nginx_binary_name }} -t"
+
+  - name: NGINX configuration for django project {{ websiteproject }}
+    template: >
+      src=etc/nginx/sites-available/nginx_default_configuration.j2
+      dest=/etc/nginx/sites-available/{{ websiteproject }}.conf
+      owner={{ nginx_user }}
+      group={{ nginx_group }}
+      mode=0644
+
+  - name: storing the certificate and the key
+    file: path=/etc/nginx/ssl/ state=directory owner=root
+  - copy: content={{ site_certificate }} dest=/etc/nginx/ssl/{{ websiteproject }}.crt
+  - copy: content={{ site_key }} dest=/etc/nginx/ssl/{{ websiteproject }}.key owner={{ nginx_user }} group={{ nginx_group }} mode=400
+
+  - name: NGINX enabling the configuration
+    file: >
+      src=/etc/nginx/sites-available/{{ websiteproject }}.conf
+      dest=/etc/nginx/sites-enabled/{{ websiteproject }}.conf
+      owner={{ nginx_user }}
+      group={{ nginx_group }}
+      state=link
+
+  # it is apparently not possible to check only for the configuration file, we should
+  # then check the installation after the installation/activation of our configuration
+  - name: NGINX checking the configuration
+    shell: "{{ nginx_binary_name }} -t"
+    notify:
+      - restart nginx
+
+  rescue:
+    - debug: msg='Error caught during the NGINX configuration'
+    #- file: path=/etc/nginx/sites-available/{{ websiteproject }}.conf state=absent
+    - file: path=/etc/nginx/sites-enabled/{{ websiteproject }}.conf state=absent
+    #- file: path=/etc/nginx/ssl/{{ websiteproject }}.crt state=absent
+    #- file: path=/etc/nginx/ssl/{{ websiteproject }}.key state=absent
+    - command: /bin/false

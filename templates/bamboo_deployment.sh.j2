@@ -1,0 +1,146 @@
+#!/bin/bash
+
+set -e {# stop at first error #}
+
+bamboo_deploy_environment="$1"
+bamboo_deploy_release="$2"
+bamboo_deploy_release_previous="$3"
+bamboo_planRepository_revision="$4"
+
+if [ -z "$bamboo_deploy_environment" ] || [ -z "$bamboo_deploy_release" ] ; then
+    echo "Missing variables/incorrect environment configuration"
+    exit 1
+fi
+
+# creating the new folders
+projectRoot={{ django_deployment_root_folder }}/{{ url }}/
+currentD=$projectRoot/project/$bamboo_deploy_release
+previousD=$projectRoot/project/$bamboo_deploy_release_previous
+current_archive=$projectRoot/versions/{{ django_revision_file_pattern }} {# this may use the variable bamboo_planRepository_revision #}
+
+# takes the previously running location in case of broken intermediate deployment
+if [ -L "$projectRoot/current" ] ; then
+  previousD=$(readlink ${projectRoot}/current)
+fi
+
+# Indicates that we copy and migrate previous instance
+# NB: DB migrations are always applied
+migrate_previous_instance=true
+
+# we remove a previous folder of "current" if exists and not the previous one
+if [ -d "$currentD" ] ; then
+	if [ "$currentD" != "$previousD" ]; then
+		rm -rf $currentD
+	else
+		rm -rf $currentD/tmp
+		rm -rf $currentD/pip-bootstrap
+		rm -rf $currentD/venv
+		rm -rf $currentD/src/{{ django_source_folder }}/static
+	fi
+else
+  migrate_previous_instance=false
+fi
+
+mkdir -p $currentD
+cd $currentD
+
+# configuring the proxy, if needed
+{% for proxy in site_proxy %}
+export {{ proxy }}
+{% endfor %}
+
+
+# installing virtual environment with bootstrapping
+echo "*********** creating the virtual environment"
+mkdir $currentD/tmp
+mkdir $currentD/pip-bootstrap
+cd $currentD/tmp
+wget https://bootstrap.pypa.io/get-pip.py
+python get-pip.py --root=$currentD/pip-bootstrap --ignore-installed
+export PATH=$currentD/pip-bootstrap/usr/local/bin:$PATH
+export PYTHONPATH=$currentD/pip-bootstrap/usr/local/lib/python2.7/dist-packages:$PYTHONPATH
+pip install --root=$currentD/pip-bootstrap --ignore-installed virtualenv
+
+virtualenv $currentD/venv
+. $currentD/venv/bin/activate
+pip install -U pip
+{% for package in django_dependencies %}
+pip install {{ package }}
+{% endfor %}
+
+# deflating the current archive
+echo "*********** preparing project folder"
+mkdir -p $currentD/src
+cd $currentD/src
+tar xjf $current_archive
+
+{% if django_pip_install_requirements %}
+# installing content of requirements.txt
+pip install -r requirements.txt
+{% endif %}
+
+# deflating some files inside the static folder
+{% for archive in django_archives_to_deflate %}
+unzip {{ archive }} -d {{ django_source_folder }}/static
+{% endfor %}
+
+
+# copying the previous files
+
+echo "*********** retrieving previous deployment data"
+
+# backup of the database, previous media files
+# static files not part of the backup, will be deployed by the application
+echo "Previous release is: " $bamboo_deploy_release_previous
+if [ "$currentD" != "$previousD" ] ; then
+	cp $previousD/src/db.sqlite3 $currentD/src || echo "no previous SQLite file found"
+	cp -R $previousD/media $currentD/. || echo "no previous media folder found"
+else
+    echo "No previous version"
+fi
+
+if [ ! -d "$currentD/media" ] ; then
+	mkdir -p $currentD/media
+fi
+
+# changes the settings
+# done directly by the environment variable of uwsgi
+export DJANGO_SETTINGS_MODULE={{ django_settings_file }}
+export DJANGO_SETTINGS_SECRET_FILE={{ django_deployment_root_folder }}/{{ url }}/secrets.py
+
+
+
+# applies the migrations and deflate the statics
+echo "*********** migrating the database"
+cd $currentD/src
+python manage.py migrate --noinput -v 3
+
+echo "*********** collecting the statics"
+mkdir -p $currentD/static
+python manage.py collectstatic --noinput
+
+
+# mutates the file permissions for the uwsgi user
+echo "*********** fix permissions"
+setfacl -m u:{{ uwsgi_user }}:rwx -R $currentD/media
+setfacl -m u:{{ uwsgi_user }}:rx -R $currentD/static
+chmod go-rwx $currentD/src/db.sqlite3
+setfacl -m u:{{ uwsgi_user }}:rwx $currentD/src/db.sqlite3
+setfacl -m u:{{ uwsgi_user }}:rwx $currentD/src
+setfacl -m u:{{ uwsgi_user }}:rwx -R $currentD/logs
+setfacl -m u:{{ uwsgi_user }}:rwx -R $currentD/temporary_upload
+
+# compile all
+python -m compileall $currentD/src/
+
+# cleanups
+rm -rf $currentD/pip-bootstrap
+rm -rf $currentD/tmp
+
+# make a final symbolic link
+echo "*********** creating the symlinks"
+rm -f $projectRoot/current
+ln -s $currentD $projectRoot/current
+
+# restart uwsgi
+sudo /etc/init.d/uwsgi restart {{ websiteproject }}

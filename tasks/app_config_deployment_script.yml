@@ -1,0 +1,80 @@
+
+# deployment script
+- block:
+  - name: Creating the deployment script
+    template: >
+      src=bamboo_deployment.sh.j2
+      dest="{{ django_deployment_root_folder }}/{{ url }}/deployment.sh"
+      mode=0500
+      owner={{ django_deployment_user }}
+
+  - name: Creating the environment files
+    template: >
+      src=secrets.py.j2
+      dest="{{ django_deployment_root_folder }}/{{ url }}/secrets.py"
+      mode=0400
+      owner={{ django_deployment_user }}
+
+  - name: sets secrets permissions
+    acl: path={{ item }} entity={{ uwsgi_user }} etype=user permissions="r" state=present
+    with_items:
+      - "{{ django_deployment_root_folder }}/{{ url }}/secrets.py"
+      
+  rescue:
+    - debug: msg='Error caught'
+    # removes the whole directory in case of failure
+    - file: path="{{ django_deployment_root_folder }}/{{ url }}" state=absent
+    - command: /bin/false
+
+
+
+# checking permissions on the current instance
+
+- name: Checking if current instance exists
+  stat: 
+    path="{{ django_deployment_root_folder }}/{{ url }}/current/"
+  register: current_instance_folder_stat
+
+
+- name: setting up the owner of the files
+  file:
+    owner={{django_deployment_user}}
+    recurse=yes
+    path="{{ django_deployment_root_folder }}/{{ url }}/current/"
+  when: current_instance_folder_stat.stat.exists == True
+    
+
+- block:
+   
+  #- stat: 
+  #    path="{{ current_instance_folder }}/{{ item.path }}"
+  #  register: current_path
+
+  - name: granting www-user read access
+    acl: 
+      path: "{{current_instance_folder}}/{{ item.path }}" 
+      entity: "{{ uwsgi_user }}" 
+      etype: user 
+      permissions: "{{ item.permissions }}" 
+      state: present 
+      recursive: "{{ item.recursive }}"
+    with_items:
+     - { path: 'media',             recursive: 'yes',  permissions: "rwx"}
+     - { path: 'static',            recursive: 'yes',  permissions: "rx"}
+     - { path: 'src/',              recursive: 'yes',  permissions: "rx"} # before the db.sqlite3
+     - { path: 'src/',              recursive: 'no',   permissions: "rwx"} # because of sqlite write
+     - { path: 'src/db.sqlite3',    recursive: 'no',   permissions: "rwx"}
+     - { path: 'logs/',             recursive: 'yes',  permissions: "rwx"}
+     - { path: 'temporary_upload/', recursive: 'yes',  permissions: "rwx"}
+
+  vars:
+    current_instance_folder: "{{ django_deployment_root_folder }}/{{ url }}/current"
+    all_items:
+     - { path: 'media',             recursive: 'yes',  permissions: "rwx"}
+     - { path: 'static',            recursive: 'yes',  permissions: "rx"}
+     - { path: 'src/',              recursive: 'yes',  permissions: "rx"} # before the db.sqlite3
+     #- { path: 'src/db.sqlite3',    recursive: 'no', permissions: "rwx"}
+     - { path: 'logs/',             recursive: 'yes',  permissions: "rwx"}
+     - { path: 'temporary_upload/', recursive: 'yes',  permissions: "rwx"}
+  
+  when: current_instance_folder_stat.stat.exists == True

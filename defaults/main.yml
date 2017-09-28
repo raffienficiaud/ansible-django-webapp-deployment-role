@@ -1,2 +1,72 @@
 ---
-# defaults file for ansible-django-webapp-deployment-role
+
+# Variables listed here are applicable to all host groups
+
+# 
+
+# Indicates if we are behind a proxy. Exports all the variables here before running
+# any pip install related command
+#
+# Example:
+#
+#  site_proxy:
+#    - http://prx1:8000
+#    - https://prx2:8000
+#
+site_proxy: []
+
+# number of workers of the uWSGI
+uwsgi_number_workers: 2
+uwsgi_user: www-data
+uwsgi_group: www-data
+
+# additional options passed to the uwsgi
+uwsgi_additional_options: []
+
+## 
+## Default webserver: apache2 or nginx
+webserver: nginx
+
+# Packages to be installed on the host for running this application
+application_additional_packages: []
+
+#
+# NGINX default parameters
+# 
+
+# location of NGinx (for checking the configuration file)
+nginx_binary_name: /usr/sbin/nginx
+
+# user/group of the Nginx server. This is used for creating the NGinx configuration files
+# with the proper credentials
+nginx_user: www-data
+nginx_group: www-data
+
+
+##
+## APACHE2
+## 
+
+apache2_check_binary_name: a2ensite
+
+
+# user/group of the Apache2 server. This is used for creating the Apache2 configuration files
+# with the proper credentials
+apache2_user: www-data
+apache2_group: www-data
+
+##
+##
+## Application specific
+##
+##
+
+# Additional archives in the source folder to deflate
+django_archives_to_deflate: []
+
+# If True, looks for a requirement.txt file in the source folder and installs
+# the dependencies specified there
+django_pip_install_requirements: False
+
+# Additional environment variables that can be set prior to starting the Django app
+django_webapplication_additional_environment_settings: {}

@@ -1,0 +1,32 @@
+#
+# UWSGI configuration
+# note: apparently there is no command line switch for testing the configuration file
+
+- block:
+  - name: UWSGI configuration for django project "{{ websiteproject }}"
+    template: >
+      src=etc/uwsgi/apps-available/uwsgi_default_configuration.j2
+      dest=/etc/uwsgi/apps-available/{{ websiteproject }}.ini
+      owner={{ uwsgi_user }}
+      group={{ uwsgi_group }}
+      mode=0644
+
+  - name: UWSGI/NGINX parameters
+    copy: src=files/uwsgi_params dest={{ django_deployment_root_folder }}/{{ url }}
+    when: webserver=='nginx'
+
+  - name: UWSGI enabling the configuration
+    file: >
+      src=/etc/uwsgi/apps-available/{{ websiteproject }}.ini
+      dest=/etc/uwsgi/apps-enabled/{{ websiteproject }}.ini
+      owner={{ uwsgi_user }}
+      group={{ uwsgi_group }}
+      state=link
+
+    notify:
+      - restart uwsgi
+  rescue:
+    - debug: msg='Error caught during the UWSGI configuration'
+    - file: path=/etc/uwsgi/apps-available/{{ websiteproject }}.ini state=absent
+    - file: path=/etc/uwsgi/apps-enabled/{{ websiteproject }}.ini state=absent
+    - command: /bin/false

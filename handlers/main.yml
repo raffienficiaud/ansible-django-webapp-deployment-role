@@ -1,2 +1,9 @@
 ---
-# handlers file for ansible-django-webapp-deployment-role
+- name: restart nginx
+  service: name=nginx state=restarted enabled=yes
+  
+- name: restart apache2
+  service: name=apache2 state=restarted enabled=yes
+
+- name: restart uwsgi
+  service: name=uwsgi state=restarted enabled=yes

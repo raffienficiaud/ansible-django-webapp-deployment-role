@@ -1,0 +1,51 @@
+# Apache conf for uWSGI gateway
+
+# http-redirects to https
+<VirtualHost *:80>
+    ServerName {{ url }}
+    Redirect permanent / https://{{ url }}/
+    
+    RewriteEngine On
+    RewriteCond %{HTTPS} off
+    RewriteRule (.*) https://%{HTTP_HOST}%{REQUEST_URI}  [R,L]    
+                                              
+</VirtualHost>
+
+<VirtualHost *:443>                            
+    ServerName {{ url }}
+    
+    SSLEngine on
+    SSLProtocol all -SSLv2
+    SSLCipherSuite ALL:!ADH:!EXPORT:!SSLv2:RC4+RSA:+HIGH:+MEDIUM:+LOW
+    SSLCertificateFile        /etc/apache2/ssl/{{ websiteproject }}.crt
+    SSLCertificateKeyFile     /etc/apache2/ssl/{{ websiteproject }}.key
+
+    <Location />
+        #Options FollowSymLinks Indexes
+        SetHandler uwsgi-handler
+        uWSGISocket /run/uwsgi/app/{{ websiteproject }}/socket
+    </Location>
+    <Location /static>
+        Options +FollowSymLinks -Indexes
+        SetHandler none
+    </Location>
+    <Location /media>
+        Options +FollowSymLinks -Indexes
+        SetHandler none
+    </Location>
+
+    Alias "/static" "{{ django_deployment_root_folder }}/{{ url }}/current/static"
+    Alias "/media" "{{ django_deployment_root_folder }}/{{ url }}/current/media"
+    <Directory "{{ django_deployment_root_folder }}/{{ url }}/current/static">
+      Options +FollowSymLinks -Indexes
+      Require all granted
+      AllowOverride None
+    </Directory>
+
+    <Directory {{ django_deployment_root_folder }}/{{ url }}/current/media>
+      Options +FollowSymLinks -Indexes
+      Require all granted
+      AllowOverride None
+    </Directory>
+
+</VirtualHost> 

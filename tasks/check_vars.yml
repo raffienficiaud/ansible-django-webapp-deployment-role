@@ -1,0 +1,35 @@
+#
+# Checking that required variables are set
+#
+
+# TODO: some of those variables should be optional
+
+- name: Checking that required variables are set
+  fail: msg="{{ item }} is not defined"
+  when: not "{{ item }}"
+  with_items:
+    - uwsgi_user
+    - uwsgi_group
+    - uwsgi_number_workers
+    - nginx_binary_name
+    - nginx_user
+    - nginx_group
+    - apache2_check_binary_name
+    - apache2_user
+    - apache2_group
+    - websiteproject
+    - url
+    - site_certificate
+    - site_key
+    - site_proxy
+    - django_deployment_user
+    - django_deployment_user_ssh_public_key
+    - django_source_folder
+    - django_archives_to_deflate
+    - django_settings_folder
+    - django_settings_file
+    - django_revision_file_pattern
+    - django_dependencies
+    - django_environment_variables
+    - webserver
+    - application_additional_packages

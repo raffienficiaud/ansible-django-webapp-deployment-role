@@ -1,0 +1,4 @@
+---
+
+dependencies:
+  - { role: ansible-django-webapp-prepare-host }

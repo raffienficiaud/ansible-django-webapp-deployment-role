@@ -1,0 +1,54 @@
+#
+# Apache2 configuration
+#
+
+- block:
+  - name: "[APACHE2] checking the configuration prior to the installation"
+    shell: "{{ apache2_check_binary_name }}"
+    tags: apache, webserver
+
+  - name: "[APACHE2] configuration for django project {{ websiteproject }}"
+    template: 
+      src: etc/apache2/sites-available/apache2_default_configuration.j2
+      dest: /etc/apache2/sites-available/{{ websiteproject }}.conf
+      owner: "{{ apache2_user }}"
+      group: "{{ apache2_group }}"
+      mode: 0644
+    tags: apache, webserver
+
+  - name: "[APACHE2] certificate folder"
+    file: path=/etc/apache2/ssl/ state=directory owner=root
+    tags: apache, webserver
+  - name: "[APACHE2] certificate"
+    copy: content={{ site_certificate }} dest=/etc/apache2/ssl/{{ websiteproject }}.crt
+    tags: apache, webserver
+  - name: "[APACHE2] certificate key"
+    copy: content={{ site_key }} dest=/etc/apache2/ssl/{{ websiteproject }}.key owner={{ apache2_user }} group={{ apache2_group }} mode=400
+    tags: apache, webserver
+
+  - name: "[APACHE2] enabling the configuration"
+    file: >
+      src=/etc/apache2/sites-available/{{ websiteproject }}.conf
+      dest=/etc/apache2/sites-enabled/{{ websiteproject }}.conf
+      owner={{ apache2_user }}
+      group={{ apache2_group }}
+      state=link
+    tags: apache, webserver
+
+  # it is apparently not possible to check only for the configuration file, we should
+  # then check the installation after the installation/activation of our configuration
+  - name: "[APACHE2] checking the configuration"
+    shell: "{{ apache2_check_binary_name }} {{ websiteproject }}.conf"
+    notify:
+      - restart apache2
+    tags: apache, webserver
+
+  rescue:
+    - debug: msg='Error caught during the NGINX configuration'
+    #- file: path=/etc/apache2/sites-available/{{ websiteproject }}.conf state=absent
+    - file: path=/etc/apache2/sites-enabled/{{ websiteproject }}.conf state=absent
+    #- file: path=/etc/apache2/ssl/{{ websiteproject }}.crt state=absent
+    #- file: path=/etc/apache2/ssl/{{ websiteproject }}.key state=absent
+    - command: /bin/false
+    
+  

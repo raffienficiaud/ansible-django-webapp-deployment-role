@@ -1,0 +1,4 @@
+
+- name: install application specific system packages
+  apt: name="{{ item }}" update_cache=yes state=present cache_valid_time=3600
+  with_items: "{{application_additional_packages}}"
