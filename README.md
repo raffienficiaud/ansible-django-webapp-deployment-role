@@ -186,7 +186,7 @@ The call of this role is not mandatory though.
 Example Playbook
 ----------------
 
-* Create an inventory entry, for instance for the `code_doc` project, like this:
+* Create an inventory entry, for instance for the `code_doc` project (located here: https://bitbucket.org/renficiaud/code_doc), like this:
 
       [code_doc-production]
       prodserver.my.localnet # indicates where the production of code_doc will go
