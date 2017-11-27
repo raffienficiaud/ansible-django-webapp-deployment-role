@@ -1,2 +1,38 @@
 ---
-# tasks file for ansible-django-webapp-deployment-role
+# This file configures a Django Web application.
+
+- include: check_vars.yml
+  tags:
+    - djangoapps:checks
+    - checks
+
+- include: app_config_folders.yml
+  tags:
+    - django-webservices:app-configuration
+
+- include: application_specific_system_packages.yml
+  tags:
+    - django-webservices:app-configuration
+
+- include: app_config_uwsgi.yml
+  tags:
+    - django-webservices:app-configuration
+
+- include: app_config_nginx.yml
+  tags:
+    - django-webservices:app-configuration
+  when: webserver=='nginx'
+
+- include: app_config_nginx.yml
+  tags:
+    - django-webservices:app-configuration
+  when: webserver=='nginx'
+
+- include: app_config_apache2.yml
+  tags:
+    - django-webservices:app-configuration
+  when: webserver=='apache2'
+
+- include: app_config_deployment_script.yml
+  tags:
+    - django-webservices:app-configuration
