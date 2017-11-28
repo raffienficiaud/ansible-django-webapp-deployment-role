@@ -13,11 +13,19 @@
       owner={{ nginx_user }}
       group={{ nginx_group }}
       mode=0644
+    tags: nginx, webserver
 
   - name: storing the certificate and the key
     file: path=/etc/nginx/ssl/ state=directory owner=root
+    tags: nginx, certificate
   - copy: content={{ site_certificate }} dest=/etc/nginx/ssl/{{ websiteproject }}.crt
+    notify:
+      - restart nginx
+    tags: nginx, certificate
   - copy: content={{ site_key }} dest=/etc/nginx/ssl/{{ websiteproject }}.key owner={{ nginx_user }} group={{ nginx_group }} mode=400
+    notify:
+      - restart nginx
+    tags: nginx, certificate
 
   - name: NGINX enabling the configuration
     file: >
@@ -26,6 +34,7 @@
       owner={{ nginx_user }}
       group={{ nginx_group }}
       state=link
+    tags: nginx, webserver
 
   # it is apparently not possible to check only for the configuration file, we should
   # then check the installation after the installation/activation of our configuration
@@ -35,9 +44,6 @@
       - restart nginx
 
   rescue:
-    - debug: msg='Error caught during the NGINX configuration'
-    #- file: path=/etc/nginx/sites-available/{{ websiteproject }}.conf state=absent
+    - debug: msg="Error caught during the NGINX configuration. Warning - certificates and keys left"
     - file: path=/etc/nginx/sites-enabled/{{ websiteproject }}.conf state=absent
-    #- file: path=/etc/nginx/ssl/{{ websiteproject }}.crt state=absent
-    #- file: path=/etc/nginx/ssl/{{ websiteproject }}.key state=absent
     - command: /bin/false
