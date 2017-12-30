@@ -41,7 +41,11 @@
 # the base directory (full path)
 chdir           = {{ django_deployment_root_folder }}/{{ url }}/current/src
 
+{% if python_major == 3 %}
+plugins         = python3
+{% else %}
 plugins         = python
+{% endif %}
 virtualenv      = {{ django_deployment_root_folder }}/{{ url }}/current/venv/
 module          = {{ django_settings_folder }}.wsgi
 

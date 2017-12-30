@@ -40,7 +40,7 @@ Requirements
 ------------
 
 This works only on Ubuntu but can easily be adapted for other platforms. Prior to running this role,
-prepare the packages that needs to be installed on the target machine with the role `ansible-django-webapp-host`.
+prepare the packages that needs to be installed on the target machine with the role `raffienficiaud.ansible-django-webapp-prepare-host-role`.
 
 Role Variables
 --------------
@@ -258,7 +258,7 @@ Example Playbook
         vars_files:
           - vault_vars/code_doc
         roles:
-        - ansible-django-webapp
+        - raffienficiaud.ansible-django-webapp-deployment-role
 
 * Finally, running ansible like this:
 

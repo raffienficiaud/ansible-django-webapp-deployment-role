@@ -61,6 +61,12 @@ apache2_group: www-data
 ##
 ##
 
+# major version of python
+python_major: 2
+
+# minor version of python
+python_minor: None
+
 # Additional archives in the source folder to deflate
 django_archives_to_deflate: []
 

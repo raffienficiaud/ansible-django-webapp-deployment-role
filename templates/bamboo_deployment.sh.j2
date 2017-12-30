@@ -51,7 +51,11 @@ export {{ proxy }}
 
 
 # installing virtual environment with bootstrapping
-echo "*********** creating the virtual environment"
+{% if python_major == 3 and python_minor >= 3 %}
+echo "*********** creating the virtual environment for python3"
+python3 -m venv $currentD/venv
+{% else %}
+echo "*********** creating the virtual environment for python2"
 mkdir $currentD/tmp
 mkdir $currentD/pip-bootstrap
 cd $currentD/tmp
@@ -62,10 +66,12 @@ export PYTHONPATH=$currentD/pip-bootstrap/usr/local/lib/python2.7/dist-packages:
 pip install --root=$currentD/pip-bootstrap --ignore-installed virtualenv
 
 virtualenv $currentD/venv
+{% endif %}
+
 . $currentD/venv/bin/activate
 pip install -U pip
 {% for package in django_dependencies %}
-pip install {{ package }}
+pip install "{{ package }}"
 {% endfor %}
 
 # deflating the current archive
