@@ -11,13 +11,63 @@
       - "{{ django_deployment_root_folder }}/{{ url }}/project"
 
   - name: sets folder permissions
-    acl: name={{ item }} entity={{ django_deployment_user }} etype=user permissions="rwx" state=present
+    acl: 
+      name: "{{ item }}" 
+      entity: "{{ django_deployment_user }}" 
+      etype: user 
+      permissions: "rwx" 
+      state: present
     with_items:
       - "{{ django_deployment_root_folder }}/{{ url }}"
       - "{{ django_deployment_root_folder }}/{{ url }}/versions"
       - "{{ django_deployment_root_folder }}/{{ url }}/project"
 
   rescue:
-    - debug: msg='Error caught'
-    - file: path="{{ django_deployment_root_folder }}/{{ url }}" state=absent
+    - debug: 
+        msg: "Error caught, please remove {{ django_deployment_root_folder }}/{{ url }} if needed"
+    # Raffi: too dangerous in case there is already stuff in those folders (already deployed applications)
+    # - file: path="{{ django_deployment_root_folder }}/{{ url }}" state=absent
     - command: /bin/false
+
+
+# in case this role is run again, changes/fixes the existing permissions
+
+# checking permissions on the current instance
+- name: Checking if current instance exists
+  stat: 
+    path: "{{ django_deployment_root_folder }}/{{ url }}/current/"
+  register: current_instance_folder_stat
+
+# change ownership
+- name: Setting up the owner of the files and default permissions
+  file:
+    owner: "{{django_deployment_user}}"
+    mode: "g-rwx,o-rwx"
+    recurse: yes
+    path: "{{ django_deployment_root_folder }}/{{ url }}/current/"
+  when: current_instance_folder_stat.stat.exists == True
+    
+# applies permissions
+- block:
+
+  - name: granting "{{ uwsgi_user }}" read/write controlled access
+    acl: 
+      path: "{{current_instance_folder}}/{{ item.path }}" 
+      entity: "{{ uwsgi_user }}" 
+      etype: user 
+      permissions: "{{ item.permissions }}" 
+      state: present 
+      recursive: "{{ item.recursive }}"
+    with_items:
+     - { path: 'media',             recursive: 'yes',  permissions: "rwx"}
+     - { path: 'static',            recursive: 'yes',  permissions: "rx"}
+     - { path: 'src/',              recursive: 'yes',  permissions: "rx"} # before the db.sqlite3
+     - { path: 'src/',              recursive: 'no',   permissions: "rwx"} # because of sqlite write
+     - { path: 'src/db.sqlite3',    recursive: 'no',   permissions: "rwx"}
+     - { path: 'logs/',             recursive: 'yes',  permissions: "rwx"}
+     - { path: 'temporary_upload/', recursive: 'yes',  permissions: "rwx"}
+
+  vars:
+    current_instance_folder: "{{ django_deployment_root_folder }}/{{ url }}/current"
+  
+  when: current_instance_folder_stat.stat.exists == True
