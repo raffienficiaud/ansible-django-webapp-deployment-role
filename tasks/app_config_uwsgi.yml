@@ -22,9 +22,19 @@
       owner={{ uwsgi_user }}
       group={{ uwsgi_group }}
       state=link
+      
+  - name: UWSGI check base directory exists
+    stat: 
+      path: "{{ django_deployment_root_folder }}/{{ url }}/current"
+    register: p
 
-    notify:
-      - restart uwsgi
+  - name: UWSGI show base directory existence
+    debug: var=p.stat.exists
+      
+  - name: UWSGI restart service
+    service: name=uwsgi state=restarted enabled=yes
+    when: p.stat.exists
+    
   rescue:
     - debug: msg='Error caught during the UWSGI configuration'
     - file: path=/etc/uwsgi/apps-available/{{ websiteproject }}.ini state=absent
